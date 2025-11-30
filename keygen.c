@@ -2,49 +2,30 @@
 #include <stdlib.h>
 #include <string.h>
 #include <oqs/oqs.h>
+#include <emscripten.h> 
 
-// Helper function to print bytes as Hex String
-void print_hex(const uint8_t *bytes, size_t len, const char *label) {
-    printf("%s: ", label);
-    for (size_t i = 0; i < len; i++) {
-        printf("%02X", bytes[i]);
-    }
-    printf("\n\n");
-}
-
-int main() {
-    // 1. Initialize the library and check for Kyber-512
-    if (OQS_KEM_alg_is_enabled(OQS_KEM_alg_kyber_512) == 0) {
-        printf("Error: Kyber-512 is not enabled in this build.\n");
-        return 1;
-    }
-
-    // 2. Create the KEM context
+// 1. Function to Generate Keys (Called from JS)
+EMSCRIPTEN_KEEPALIVE
+void generate_kyber_keys(uint8_t *public_key, uint8_t *secret_key) {
+    // Initialize Kyber-512
     OQS_KEM *kem = OQS_KEM_new(OQS_KEM_alg_kyber_512);
-    if (kem == NULL) {
-        printf("Error: Failed to initialize KEM.\n");
-        return 1;
-    }
+    if (kem == NULL) return;
 
-    // 3. Allocate memory for keys
-    uint8_t *public_key = malloc(kem->length_public_key);
-    uint8_t *secret_key = malloc(kem->length_secret_key);
-
-    // 4. Generate Keypair
-    if (OQS_KEM_keypair(kem, public_key, secret_key) != OQS_SUCCESS) {
-        printf("Error: Key generation failed.\n");
-        return 1;
-    }
-
-    // 5. Print the keys (Copy these!)
-    printf("=== COPY THESE KEYS FOR YOUR ASSIGNMENT ===\n");
-    print_hex(public_key, kem->length_public_key, "PUBLIC_KEY");
-    print_hex(secret_key, kem->length_secret_key, "SECRET_KEY");
+    // Generate keys directly into the memory JavaScript gave us
+    OQS_KEM_keypair(kem, public_key, secret_key);
 
     // Cleanup
     OQS_KEM_free(kem);
-    free(public_key);
-    free(secret_key);
+}
 
-    return 0;
+// 2. Helper: Tell JS the Public Key size is 800 bytes
+EMSCRIPTEN_KEEPALIVE
+int get_pubkey_size() {
+    return 800; 
+}
+
+// 3. Helper: Tell JS the Private Key size is 1632 bytes
+EMSCRIPTEN_KEEPALIVE
+int get_privkey_size() {
+    return 1632; 
 }
