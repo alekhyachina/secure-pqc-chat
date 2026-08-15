@@ -1,15 +1,13 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  webpack: (config) => {
-    // Enable WebAssembly support
-    config.experiments = { 
-      ...config.experiments, 
-      asyncWebAssembly: true,
-      layers: true,
-    };
-    return config;
-  },
-};
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
-export default nextConfig;
+export default defineConfig([
+  globalIgnores([
+    "node_modules/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "public/wasm_keygen.js",
+  ]),
+  ...nextCoreWebVitals,
+]);

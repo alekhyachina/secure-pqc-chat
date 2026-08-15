@@ -1,4 +1,3 @@
-import Cookies from 'js-cookie';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -13,25 +12,23 @@ export default function Home() {
     e.preventDefault();
     setError('');
 
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok) {
-      // 1. Manually force the cookie to be set
-      Cookies.set('token', data.token);
-
-      // 2. NOW redirect
-      console.log('Token set, redirecting...');
-      router.push('/chat');
-    } else {
-      setError(data.message || 'Login failed');
+      if (res.ok) {
+        // The server response set the token cookie; safe to redirect now
+        router.push('/chat');
+      } else {
+        setError(data.message || 'Login failed');
+      }
+    } catch {
+      setError('Network error. Please try again.');
     }
   };
 

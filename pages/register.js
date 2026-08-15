@@ -8,17 +8,22 @@ export default function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    
-    if (res.ok) {
-        alert("Registration Successful! Please Login.");
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+
+      if (res.ok) {
+        alert('Registration Successful! Please Login.');
         router.push('/');
-    } else {
-        alert('Error registering. Ensure username is unique and all fields are filled.');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Error registering. Ensure username is unique and all fields are filled.');
+      }
+    } catch {
+      alert('Network error. Please try again.');
     }
   };
 
@@ -31,6 +36,7 @@ export default function Register() {
         <input
           className="w-full p-2 border mb-4 rounded"
           placeholder="Enter username"
+          required
           value={form.username}
           onChange={(e) => setForm({...form, username: e.target.value})}
         />
@@ -40,6 +46,7 @@ export default function Register() {
           className="w-full p-2 border mb-4 rounded"
           type="password"
           placeholder="Enter password"
+          required
           value={form.password}
           onChange={(e) => setForm({...form, password: e.target.value})}
         />
@@ -49,6 +56,7 @@ export default function Register() {
         <textarea
           className="w-full p-2 border mb-6 text-xs font-mono bg-gray-50 h-32 rounded"
           placeholder="Paste PUBLIC_KEY hex string here..."
+          required
           value={form.pqcPublicKey}
           onChange={(e) => setForm({...form, pqcPublicKey: e.target.value})}
         />

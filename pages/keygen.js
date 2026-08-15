@@ -1,29 +1,51 @@
 import { useState, useEffect } from 'react';
-import Script from 'next/script';
 
 export default function KeyGen() {
   const [keys, setKeys] = useState({ publicKey: '', privateKey: '' });
   const [status, setStatus] = useState('Waiting for C-WASM...');
   const [wasmReady, setWasmReady] = useState(false);
 
+  // 1. LOAD THE COMPILED C CODE
+  // Loaded manually (not via next/script) and idempotently: on re-visits the
+  // script tag and the initialized Emscripten runtime are reused.
+  useEffect(() => {
+    let cancelled = false;
+
+    const markReady = () => {
+      if (cancelled) return;
+      setWasmReady(true);
+      setStatus('Ready. Loaded keygen.c via WebAssembly!');
+    };
+
+    const watchRuntime = () => {
+      if (window.Module?.calledRun) {
+        markReady(); // Runtime already initialized
+      } else {
+        window.Module.onRuntimeInitialized = markReady;
+      }
+    };
+
+    if (document.querySelector('script[src="/wasm_keygen.js"]')) {
+      watchRuntime();
+    } else {
+      const script = document.createElement('script');
+      script.src = '/wasm_keygen.js';
+      script.onload = watchRuntime;
+      script.onerror = () => {
+        if (!cancelled) setStatus('Error: failed to load wasm_keygen.js');
+      };
+      document.body.appendChild(script);
+    }
+
+    return () => { cancelled = true; };
+  }, []);
+
   // Helper: Convert C-memory (Uint8Array) to Hex String
-  const toHex = (arr) => 
+  const toHex = (arr) =>
     Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 
   return (
     <div className="p-8 font-sans max-w-4xl mx-auto">
-      {/* 1. LOAD THE COMPILED C CODE */}
-      <Script 
-        src="/wasm_keygen.js" 
-        onLoad={() => {
-          // Wait for Emscripten to be ready
-          window.Module.onRuntimeInitialized = () => {
-            setWasmReady(true);
-            setStatus('Ready. Loaded keygen.c via WebAssembly!');
-          };
-        }}
-      />
-
       <h1 className="text-2xl font-bold mb-6 text-green-700">PQC Key Generator (C + WASM)</h1>
       <p className="mb-6 text-gray-600">
         This page runs your <b>C code</b> directly in the browser using WebAssembly.
@@ -47,9 +69,9 @@ export default function KeyGen() {
             // C. Run the C function!
             Module._generate_kyber_keys(pkPtr, skPtr);
 
-            // D. Read results back from memory
-            const pkBytes = new Uint8Array(Module.HEAPU8.buffer, pkPtr, pkSize);
-            const skBytes = new Uint8Array(Module.HEAPU8.buffer, skPtr, skSize);
+            // D. Copy results out of WASM memory
+            const pkBytes = Module.HEAPU8.slice(pkPtr, pkPtr + pkSize);
+            const skBytes = Module.HEAPU8.slice(skPtr, skPtr + skSize);
 
             // E. Display them
             setKeys({
@@ -57,7 +79,8 @@ export default function KeyGen() {
               privateKey: toHex(skBytes)
             });
 
-            // F. Clean up C memory
+            // F. Wipe the private key from the WASM heap, then free
+            Module.HEAPU8.fill(0, skPtr, skPtr + skSize);
             Module._free(pkPtr);
             Module._free(skPtr);
 

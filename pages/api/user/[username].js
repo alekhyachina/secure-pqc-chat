@@ -1,15 +1,23 @@
-import dbConnect from '../../../lib/dbConnect'; // Update path if needed (e.g., lib/dbConnect)
+import dbConnect from '../../../lib/dbConnect';
 import User from '../../../models/User';
+import { getAuthenticatedUser } from '../../../lib/auth';
 
 export default async function handler(req, res) {
-  const { username } = req.query;
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', ['GET']);
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-  if (req.method !== 'GET') return res.status(405).end();
+  if (!getAuthenticatedUser(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { username } = req.query;
 
   try {
     await dbConnect();
-    // Find user and ONLY return the public key (exclude password)
-    const user = await User.findOne({ username }).select('pqcPublicKey');
+    // Only return the public key (never the password hash)
+    const user = await User.findOne({ username: String(username) }).select('pqcPublicKey');
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -17,7 +25,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ pqcPublicKey: user.pqcPublicKey });
   } catch (error) {
-    console.error(error);
+    console.error('User lookup error:', error);
     res.status(500).json({ error: 'Server error fetching key' });
   }
 }
