@@ -4,16 +4,17 @@ const UserSchema = new mongoose.Schema({
   username: {
     type: String,
     required: [true, 'Please provide a username'],
-    unique: [true, 'Username already exists'],
+    unique: true,
+    trim: true,
   },
   password: {
     type: String,
     required: [true, 'Please provide a password'],
   },
   pqcPublicKey: {
-    type: String, 
-    required: true 
-  }
+    type: String,
+    required: [true, 'Please provide a PQC public key'],
+  },
 });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
